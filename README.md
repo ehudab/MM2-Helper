@@ -14,6 +14,7 @@ Current helpers included:
 - `falling_factorial`
 - `beta_cdf_f64`
 - `kld_f64`
+- `u8_from_bool`, converts true/false (or a 0/1 byte) to a 0/1 byte for `ifnz`
 - `count-fast`, an installable streaming sink for counting complete support
   assignments without retaining every matched binding
 

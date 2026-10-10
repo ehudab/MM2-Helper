@@ -1066,9 +1066,41 @@ impl Sink for FastCountSink {
     }
 }
 
+/// (u8_from_bool <bool>) -> one byte: 1 for true, 0 for false.
+/// Accepts the text `true`/`false` (mm2-stdlib comparisons) and an existing
+/// 0/1 byte (MORK built-in comparisons), so it is safe in front of `ifnz`:
+///   (ifnz (u8_from_bool (gt_i32 a b)) then X else Y)
+pub extern "C" fn u8_from_bool(expr: *mut ExprSource, sink: *mut ExprSink) -> Result<(), EvalError> {
+    let expr = unsafe { &mut *expr };
+    let sink = unsafe { &mut *sink };
+
+    let items = expr.consume_head_check(b"u8_from_bool")?;
+    if items != 1 {
+        return Err(EvalError::from("u8_from_bool takes one argument"));
+    }
+    let SourceItem::Symbol(symbol) = expr.read() else {
+        return Err(EvalError::from(
+            "u8_from_bool expects a symbol (true/false or a 0/1 byte)",
+        ));
+    };
+    let value: u8 = match symbol {
+        b"true" | [1] => 1,
+        b"false" | [0] => 0,
+        _ => {
+            return Err(EvalError::from(
+                "u8_from_bool expects true, false, or a 0/1 byte",
+            ))
+        }
+    };
+    let out = [value];
+    sink.write(SourceItem::Symbol(&out))?;
+    Ok(())
+}
+
 pub fn register(scope: &mut EvalScope) {
     scope.add_func("partitions", partitions, FuncType::Pure);
     scope.add_func("is_var", is_var, FuncType::Pure);
+    scope.add_func("u8_from_bool", u8_from_bool, FuncType::Pure);
     scope.add_func("is_exp", is_exp, FuncType::Pure);
     scope.add_func("is-exp", is_exp, FuncType::Pure);
     scope.add_func("vars_to_indices", vars_to_indices, FuncType::Pure);
